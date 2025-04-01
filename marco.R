@@ -26,8 +26,8 @@ dml_data <- DoubleMLData$new(
 
 
 # Learner for outcome and treatment model
-ml_g <- lrn("regr.ranger", num.trees = 500)  # for outcome model
-ml_m <- lrn("regr.ranger", num.trees = 500)  # for treatment model
+ml_g <- lrn("regr.ranger")  # for outcome model
+ml_m <- lrn("regr.ranger")  # for treatment model
 
 # Initialize the DoubleMLPLR (Partially Linear Regression) model
 dml_plr <- DoubleMLPLR$new(data = dml_data,
@@ -40,3 +40,5 @@ dml_plr$fit()
 
 # Print summary
 print(dml_plr$summary())
+
+
