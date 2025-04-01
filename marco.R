@@ -6,6 +6,29 @@ str(df)
 df <- df %>%
   mutate(across(where(is.character), as.factor))
 
+# Create list of unique symptoms
+symptoms_list <- c("Headache", "Nausea", "Seizures", "Vision Issues")
+
+# Initialize new binary columns with 0
+for (symptom in symptoms_list) {
+  df[[symptom]] <- 0
+}
+
+# Loop through Symptom_1 to Symptom_3 and update binary indicators
+for (i in 1:3) {
+  col_name <- paste0("Symptom_", i)
+  for (symptom in symptoms_list) {
+    df[[symptom]] <- df[[symptom]] | (df[[col_name]] == symptom)
+  }
+}
+
+# Convert logicals to numeric (0/1)
+df[symptoms_list] <- lapply(df[symptoms_list], as.integer)
+
+# Drop the original Symptom_1 to Symptom_3 columns
+df <- df[ , !(names(df) %in% c("Symptom_1", "Symptom_2", "Symptom_3"))]
+
+
 str(df)
 
 library(mlr3verse)
