@@ -3,7 +3,7 @@ library(tidyverse)
 
 # Daten laden
 data <- read_csv("brain_tumor_dataset.csv")
-
+ 
 # Datentypen vorbereiten
 data <- data %>%
   mutate(across(where(is.character), as.factor))
