@@ -1,10 +1,42 @@
-# Daten einlesen
-data <- read.csv("brain_tumor_dataset.csv", stringsAsFactors = FALSE)
+library(tidyverse)
+data <- read_csv("brain_tumor_dataset.csv")
+summary(data)
+str(data)
+
+data <- data %>%
+  mutate(across(where(is.character), as.factor))
+
+# Create list of unique symptoms
+symptoms_list <- c("Headache", "Nausea", "Seizures", "Vision Issues")
+
+# Initialize new binary columns with 0
+for (symptom in symptoms_list) {
+  data[[symptom]] <- 0
+}
+
+# Loop through Symptom_1 to Symptom_3 and update binary indicators
+for (i in 1:3) {
+  col_name <- paste0("Symptom_", i)
+  for (symptom in symptoms_list) {
+    data[[symptom]] <- data[[symptom]] | (data[[col_name]] == symptom)
+  }
+}
+
+# Convert logicals to numeric (0/1)
+data[symptoms_list] <- lapply(data[symptoms_list], as.integer)
+
+# Drop the original Symptom_1 to Symptom_3 columns
+data <- data[ , !(names(data) %in% c("Symptom_1", "Symptom_2", "Symptom_3"))]
+
+
+str(data)
+
 
 # Überblick verschaffen
 head(data)
 str(data)
 summary(data)
+ 
 
 # Alter als Zahl umwandeln
 data$Age <- as.numeric(data$Age)
@@ -248,4 +280,41 @@ cor_matrix <- cor(numeric_data, use = "complete.obs")
 corrplot(cor_matrix, method = "color", type = "upper",
          tl.col = "black", tl.srt = 45,
          title = "Correlation Matrix", mar = c(0,0,1,0))
+
+
+# Pakete laden
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Daten vorbereiten
+plot_data <- data %>%
+  select(Survival_Rate, Radiation_Treatment, Surgery_Performed, Chemotherapy)
+
+# Sicherstellen: Survival_Rate ist numerisch
+plot_data$Survival_Rate <- as.numeric(plot_data$Survival_Rate)
+
+# Treatments als Faktor (aber nur die Treatments!)
+plot_data$Radiation_Treatment <- as.factor(plot_data$Radiation_Treatment)
+plot_data$Surgery_Performed <- as.factor(plot_data$Surgery_Performed)
+plot_data$Chemotherapy <- as.factor(plot_data$Chemotherapy)
+
+# Long-Format für ggplot
+long_data <- pivot_longer(plot_data,
+                          cols = c(Radiation_Treatment, Surgery_Performed, Chemotherapy),
+                          names_to = "Treatment_Type",
+                          values_to = "Treated")
+
+# Plot zurücksetzen
+par(mfrow = c(1, 1))
+
+# Boxplot zeichnen
+ggplot(long_data, aes(x = Treated, y = Survival_Rate, fill = Treated)) +
+  geom_boxplot() +
+  facet_wrap(~Treatment_Type) +
+  labs(title = "Survival Rate by Treatment Type",
+       x = "Treatment (No / Yes)",
+       y = "Survival Rate (%)") +
+  scale_fill_manual(values = c("tomato", "skyblue")) +
+  theme_minimal()
 
