@@ -318,3 +318,17 @@ ggplot(long_data, aes(x = Treated, y = Survival_Rate, fill = Treated)) +
   scale_fill_manual(values = c("tomato", "skyblue")) +
   theme_minimal()
 
+# Group by age and calculate mean survival rate
+library(dplyr)
+age_survival <- data %>%
+  group_by(Age) %>%
+  summarise(Mean_Survival = mean(Survival_Rate, na.rm = TRUE))
+
+# Plot
+ggplot(age_survival, aes(x = Age, y = Mean_Survival)) +
+  geom_line(color = "darkgreen", size = 1) +
+  labs(title = "Average Survival Rate by Age",
+       x = "Age",
+       y = "Mean Survival Rate (%)") +
+  theme_minimal()
+
