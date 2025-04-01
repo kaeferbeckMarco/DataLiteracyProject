@@ -129,7 +129,7 @@ ggplot(long_data, aes(x = Treated, y = Survival_Rate, fill = Treated)) +
 age_survival <- data %>%
   group_by(Age) %>%
   summarise(Mean_Survival = mean(Survival_Rate, na.rm = TRUE))
-
+ 
 ggplot(age_survival, aes(x = Age, y = Mean_Survival)) +
   geom_line(color = "darkgreen", size = 1) +
   labs(title = "Average Survival Rate by Age",
