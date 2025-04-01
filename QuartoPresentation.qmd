@@ -1,0 +1,92 @@
+---
+title: "R PROJECT"
+subtitle: "A datadriven analysis of brain tumors"
+author: 
+  - "Marco Käferbeck"
+  - "Sam Corvin"
+  - "Tobias Granegger"
+  - "Fabian Veis"
+format: 
+  revealjs:
+    theme: default
+    slide-number: true
+    toc: true
+    toc-depth: 2
+    logo: LogoWU.png
+    transition: slide
+    chalkboard: true
+    #highlight-style: github
+    fig-align: center
+    code-line-numbers: true
+    code-fold: show
+    footer: "Data Literacy – WU Vienna"
+    progress: true
+    layout: true
+    #title-slide-attributes:
+      #data-background-color: "#002b36"
+      #data-background-size: cover
+editor: visual
+---
+
+## Data set (I/II)
+
+**Brain Tumor Dataset:** 
+
+-   Dataset contains simulated data for brain tumor diagnosis, treatment, and patient details
+-   20 columns and 20,000 rows
+-   Provides information such as patient demographics, tumor characteristics, symptoms, treatment details, and follow-up requirements
+
+## Data set (II/II)
+
+Summary information:
+
+```{r}
+library(readr)
+data <- read_csv("brain_tumor_dataset.csv")
+
+n_patients <- nrow(data)
+avg_age <- round(mean(data$Age), 1)
+gender_dist <- prop.table(table(data$Gender))
+tumor_type_dist <- prop.table(table(data$Tumor_Type))
+common_locations <- names(sort(table(data$Location), decreasing = TRUE)[1:3])
+top_histologies <- names(sort(table(data$Histology), decreasing = TRUE)[1:3])
+radiation_pct <- round(mean(data$Radiation_Treatment == "Yes") * 100)
+chemo_pct <- round(mean(data$Chemotherapy == "Yes") * 100)
+surgery_pct <- round(mean(data$Surgery_Performed == "Yes") * 100)
+avg_survival <- round(mean(data$Survival_Rate), 1)
+avg_growth <- round(mean(data$Tumor_Growth_Rate), 2)
+
+cat(glue::glue("
+- Patients: {n_patients}
+- Average Age: {avg_age} years
+- Gender: {round(gender_dist['Male']*100)}% Male, {round(gender_dist['Female']*100)}% Female
+- Tumor Types: {round(tumor_type_dist['Malignant']*100)}% Malignant, {round(tumor_type_dist['Benign']*100)}% Benign
+- Common Locations: {paste(common_locations, collapse = ', ')}
+- Top Histology Types: {paste(top_histologies, collapse = ', ')}
+- Treatment:
+   - Radiation: {radiation_pct}%
+   - Chemotherapy: {chemo_pct}%
+   - Surgery: {surgery_pct}%
+- Mean Survival Rate: {avg_survival}%
+- Mean Tumor Growth Rate: {avg_growth}
+"))
+```
+
+## Research question
+
+What are the most significant clinical and demographic factors influencing the survival rate of brain tumor patients?
+
+How does the most influential factor (e.g. tumor stage or treatment response) causally affect the survival rate of brain tumor patients?
+
+## Exploratory data analysis
+
+```{r}
+data$Age <- as.numeric(data$Age)
+hist(data$Age, main = "Age distribution", xlab = "Alter", col = "skyblue", breaks = 10)
+```
+
+## Random forest, feature of importance
+
+## Causal method, machine learning, direct acyclical analysis
+
+## Conclusion
