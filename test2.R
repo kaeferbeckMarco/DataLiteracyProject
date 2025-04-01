@@ -120,13 +120,7 @@ View(data)
 str(data)
 summary(data)
 
-# Histogram of Survival Rate
-hist(data$Survival_Rate,
-     main = "Distribution of Survival Rates",
-     xlab = "Survival Rate (%)",
-     col = "lightblue",
-     border = "white",
-     breaks = 10)
+
 
 # Häufigkeiten (TRUE/FALSE zählen → TRUE = Ja, FALSE = Nein)
 treatment_data <- data.frame(
@@ -275,11 +269,6 @@ numeric_data <- data %>%
 
 # Korrelation berechnen
 cor_matrix <- cor(numeric_data, use = "complete.obs")
-
-# Heatmap anzeigen
-corrplot(cor_matrix, method = "color", type = "upper",
-         tl.col = "black", tl.srt = 45,
-         title = "Correlation Matrix", mar = c(0,0,1,0))
 
 
 # Pakete laden
