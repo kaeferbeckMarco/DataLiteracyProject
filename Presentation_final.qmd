@@ -509,25 +509,25 @@ str(df)
 <br>
 
 ::: {style="max-height: 460px; overflow-y: auto; font-size: 55%;"}
-| Variable | Role | Explanation |
+| Variable            | Role                | Explanation                                                               |
 |------------------|------------------|------------------------------------|
-| Patient_ID | Irrelevant | Unique identifier; no causal meaning. |
-| Age | Confounder | Affects both tumor development and survival independently. |
-| Gender | Confounder | Influences tumor biology and survival differences. |
-| Tumor_Type | Mediator / Modifier | Affects tumor size and survival; downstream of genetic/biological causes. |
-| Tumor_Size | Treatment | Exposure variable of interest. |
-| Location | Confounder | Tumor location can affect growth and survival likelihood. |
-| Histology | Confounder | Tumor cell type influences growth and prognosis. |
-| Stage | Collider / Mediator | Influenced by size/symptoms; affects survival. |
-| Symptom_1 / 2 / 3 | Collider / Proxy | Caused by tumor size; influences detection/treatment. |
-| Radiation_Treatment | Mediator / Collider | Determined by size/stage; affects survival. |
-| Surgery_Performed | Mediator / Collider | On the causal path; may also be affected by other factors. |
-| Chemotherapy | Mediator / Collider | Same as above. |
-| Survival_Rate | Outcome | Target variable. |
-| Tumor_Growth_Rate | Mediator | Upstream of size; more aggressive tumors grow faster and affect survival. |
-| Family_History | Confounder | Genetic risk; influences tumor characteristics and survival risk. |
-| MRI_Result | Collider | Influenced by tumor/symptoms; affects treatment; don't adjust. |
-| Follow_Up_Required | Collider | Based on tumor/treatment; conditioning may introduce bias. |
+| Patient_ID          | Irrelevant          | Unique identifier; no causal meaning.                                     |
+| Age                 | Confounder          | Affects both tumor development and survival independently.                |
+| Gender              | Confounder          | Influences tumor biology and survival differences.                        |
+| Tumor_Type          | Mediator / Modifier | Affects tumor size and survival; downstream of genetic/biological causes. |
+| Tumor_Size          | Treatment           | Exposure variable of interest.                                            |
+| Location            | Confounder          | Tumor location can affect growth and survival likelihood.                 |
+| Histology           | Confounder          | Tumor cell type influences growth and prognosis.                          |
+| Stage               | Collider / Mediator | Influenced by size/symptoms; affects survival.                            |
+| Symptom_1 / 2 / 3   | Collider / Proxy    | Caused by tumor size; influences detection/treatment.                     |
+| Radiation_Treatment | Mediator / Collider | Determined by size/stage; affects survival.                               |
+| Surgery_Performed   | Mediator / Collider | On the causal path; may also be affected by other factors.                |
+| Chemotherapy        | Mediator / Collider | Same as above.                                                            |
+| Survival_Rate       | Outcome             | Target variable.                                                          |
+| Tumor_Growth_Rate   | Mediator            | Upstream of size; more aggressive tumors grow faster and affect survival. |
+| Family_History      | Confounder          | Genetic risk; influences tumor characteristics and survival risk.         |
+| MRI_Result          | Collider            | Influenced by tumor/symptoms; affects treatment; don't adjust.            |
+| Follow_Up_Required  | Collider            | Based on tumor/treatment; conditioning may introduce bias.                |
 :::
 
 ## Direct acyclical analysis (DAG)
