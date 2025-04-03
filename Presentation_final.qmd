@@ -1,0 +1,577 @@
+---
+title: "R PROJECT"
+subtitle: "A datadriven analysis of brain tumors"
+author:
+  - "Marco Käferbeck"
+  - "Sam Corvin"
+  - "Tobias Granegger"
+  - "Fabian Veis"
+format:
+  revealjs:
+    theme: default
+    slide-number: true
+    logo: LogoWU.png
+    transition: fade
+    highlight-style: github
+    fig-align: center
+    code-line-numbers: true
+    layout: true
+    footer: "Data Literacy - WU Vienna"
+editor: visual
+---
+
+## Table of contents
+
+<br>
+
+-   Introducing our dataset
+
+-   Research question
+
+-   Exploratory data analysis
+
+-   Random forest, feature of importance
+
+-   Causal method, machine learning, direct acyclical analysis
+
+-   Conclusion
+
+## Introducing our dataset
+
+<br>
+
+-   Dataset contains simulated data for brain tumor diagnosis, treatment, and patient details
+
+-   Provides information such as patient demographics, tumor characteristics, symptoms, treatment details, and follow-up requirements
+
+-   20 columns and 20,000 rows
+
+## Introducing our dataset
+
+<br>
+
+```{r}
+library(readr)
+library(caret)
+library(tidyverse)
+library(ggplot2)
+library(ranger)
+library(randomForest)
+data <- read_csv("brain_tumor_dataset.csv")
+
+n_patients <- nrow(data)
+avg_age <- round(mean(data$Age), 1)
+gender_dist <- prop.table(table(data$Gender))
+tumor_type_dist <- prop.table(table(data$Tumor_Type))
+common_locations <- names(sort(table(data$Location), decreasing = TRUE)[1:3])
+top_histologies <- names(sort(table(data$Histology), decreasing = TRUE)[1:3])
+radiation_pct <- round(mean(data$Radiation_Treatment == "Yes") * 100)
+chemo_pct <- round(mean(data$Chemotherapy == "Yes") * 100)
+surgery_pct <- round(mean(data$Surgery_Performed == "Yes") * 100)
+avg_survival <- round(mean(data$Survival_Rate), 1)
+avg_growth <- round(mean(data$Tumor_Growth_Rate), 2)
+
+cat(glue::glue("
+- Patients: {n_patients}
+- Average Age: {avg_age} years
+- Gender: {round(gender_dist['Male']*100)}% Male, {round(gender_dist['Female']*100)}% Female
+- Tumor Types: {round(tumor_type_dist['Malignant']*100)}% Malignant, {round(tumor_type_dist['Benign']*100)}% Benign
+- Common Locations: {paste(common_locations, collapse = ', ')}
+- Top Histology Types: {paste(top_histologies, collapse = ', ')}
+- Treatment:
+    - Radiation: {radiation_pct}%
+    - Chemotherapy: {chemo_pct}%
+    - Surgery: {surgery_pct}%
+- Mean Survival Rate: {avg_survival}%
+- Mean Tumor Growth Rate: {avg_growth}%"))
+```
+
+<br>
+
+Despite an even split in tumor type and treatment, the average survival rate is relatively high at 70.1%
+
+## Research question
+
+<br>
+
+What are the most significant clinical and demographic **factors influencing** **the** **survival rate** of brain tumor patiens?
+
+<br>
+
+**How** does the most influential factor (e.g. tumor stage, treatment response) **causally effect** the **survival rate** of brain tumor patients?
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+data <- data %>%
+  mutate(across(where(is.character), as.factor))
+
+data$Age <- as.numeric(data$Age)
+hist(data$Age, main = "Age distribution of cancer patients", xlab = "Age", col = "skyblue", breaks = 10) 
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+barplot(table(data$Gender), col = "purple", main = "Gender distribution of cancer patients")
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+barplot(table(data$Stage), col = "tomato", main = "Tumor stage (benign / malignant)")
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+yn_cols <- c("Radiation_Treatment", "Surgery_Performed", "Chemotherapy", "Family_History", "Follow_Up_Required")
+data[yn_cols] <- lapply(data[yn_cols], function(x) tolower(as.character(x)) == "yes")
+
+treatment_data <- data.frame(Treatment = c("Radiation", "Radiation", "Surgery", "Surgery", "Chemotherapy", "Chemotherapy"), Status = c("No", "Yes", "No", "Yes", "No", "Yes"), Count = c(sum(!data$Radiation_Treatment, na.rm = TRUE), sum(data$Radiation_Treatment, na.rm = TRUE), sum(!data$Surgery_Performed, na.rm = TRUE), sum(data$Surgery_Performed, na.rm = TRUE), sum(!data$Chemotherapy, na.rm = TRUE), sum(data$Chemotherapy, na.rm = TRUE)))
+
+treatment_matrix <- matrix(treatment_data$Count, nrow = 2, byrow = FALSE)
+colnames(treatment_matrix) <- c("Radiation", "Surgery", "Chemotherapy")
+rownames(treatment_matrix) <- c("No", "Yes")
+barplot(treatment_matrix, beside = TRUE, col = c("lightgray", "darkblue"), legend = rownames(treatment_matrix), main = "Comparison of treatment types", ylab = "Number of patients")
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+boxplot(Survival_Rate ~ Tumor_Type, data = data, main = "Survival rate by tumor type", xlab = "Tumor type", ylab = "Survival rate (%)", col = "lightblue", las = 2)
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+boxplot(Survival_Rate ~ Stage, data = data, main = "Survival rate by tumor stage", xlab = "Tumor stage", ylab = "Survival rate (%)", col = "tomato")
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+boxplot(Survival_Rate ~ Gender, data = data, main = "Survival rate by gender", xlab = "Gender", ylab = "Survival rate (%)", col = "lightgreen")
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+plot_data <- data %>%
+  select(Survival_Rate, Radiation_Treatment, Surgery_Performed, Chemotherapy) %>%
+  mutate(across(everything(), as.factor)) %>%
+  mutate(Survival_Rate = as.numeric(as.character(data$Survival_Rate)))
+
+long_data <- pivot_longer(plot_data, cols = c(Radiation_Treatment, Surgery_Performed, Chemotherapy), names_to = "Treatment_Type", values_to = "Treated")
+
+ggplot(long_data, aes(x = Treated, y = Survival_Rate, fill = Treated)) + geom_boxplot() + facet_wrap(~Treatment_Type) + labs(title = "Survival rate by treatment type", x = "Treatment (no / yes)", y = "Survival rate (%)") + scale_fill_manual(values = c("tomato", "skyblue")) + theme_minimal()
+```
+
+## Exploratory data analysis
+
+<br>
+
+```{r}
+age_survival <- data %>%
+  group_by(Age) %>%
+    summarise(Mean_Survival = mean(Survival_Rate, na.rm = TRUE))
+
+ggplot(age_survival, aes(x = Age, y = Mean_Survival)) + geom_line(color = "darkgreen", linewidth = 1) + labs(title = "Average survival rate by age", x = "Age", y = "Mean survival rate (%)") + theme_minimal()
+```
+
+## Feature of importance
+
+::: {style="max-height: 550px; font-size: 70%;"}
+```{r}
+brain_tumor_data <- read.csv("brain_tumor_dataset.csv")
+brain_tumor_data <- subset(brain_tumor_data, select = -Patient_ID)
+
+set.seed(42)
+rf_model <- ranger(Survival_Rate ~ ., 
+                   data = brain_tumor_data,
+                   probability = FALSE,
+                   importance = "permutation")
+
+importance_scores <- rf_model$variable.importance
+sorted_importance <- sort(importance_scores, decreasing = TRUE)
+par(mar = c(9, 4, 2, 2))
+barplot(sorted_importance[1:6], las = 2, ylab = "Importance")
+```
+:::
+
+## Feature of importance
+
+<br>
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 60%;"}
+```{r}
+print(sorted_importance)
+```
+
+<br>
+
+-   Top features influencing survival rate are Stage, Symptom_1, and Histology
+
+-   Age and Gender also show moderate importance
+
+-   Several features like Tumor_Growth_Rate, Tumor_Type, and Location show negative importance, possibly reducing model performance
+
+-   Features such as Chemotherapy and Radiation_Treatment had little to no predictive value
+:::
+
+## Random Forest model
+
+<br>
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 100%;"}
+```{r, eval=FALSE, echo=TRUE}
+set.seed(42)
+# Train the model
+rf_model <- randomForest(Survival_Rate ~ ., data = train_data, 
+importance = TRUE, ntree = 100)
+
+# View feature importance
+importance_scores <- importance(rf_model)
+ranked_features <- importance_scores[order(importance_scores[,1],
+decreasing = TRUE), ]
+
+# Predict using Random Forest
+rf_predictions <- predict(rf_model, newdata = test_data)
+```
+:::
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 60%;"}
+<br>
+
+-   Trained a Random Forest model to predict patient survival rate
+
+-   Used 100 trees and enabled feature importance analysis
+
+-   Ranked features based on their mean decrease in accuracy
+:::
+
+## Linear regression model
+
+<br>
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 70%;"}
+```{r, eval=FALSE, echo=TRUE}
+set.seed(42)
+# Train the model
+lm_model <- lm(Survival_Rate ~ ., data = train_data)
+
+# Predict using Linear Regression
+lm_predictions <- predict(lm_model, newdata = test_data)
+```
+
+<br>
+
+-   Trained a linear regression model to predict survival rate
+
+-   Included all available features as predictors
+
+-   Serves as a baseline for comparison with more complex models like Random Forests
+:::
+
+## Model performance comparison
+
+<br>
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 58%;"}
+```{r, eval=FALSE, echo=TRUE}
+set.seed(42)
+# Random Forest R^2
+rf_r2 <- cor(test_data$Survival_Rate, rf_predictions)^2
+
+# Linear Model R^2 and Adjusted R^2
+lm_r2 <- summary(lm_model)$r.squared
+
+# Function to compute Adjusted R^2
+adjusted_r2 <- function(r2, n, p) {
+  return (1 - ((1 - r2) * (n - 1) / (n - p - 1)))
+}
+
+# Adjusted R^2 values
+rf_adjusted_r2 <- adjusted_r2(rf_r2, nrow(test_data), ncol(test_data) - 1)
+lm_adjusted_r2 <- adjusted_r2(lm_r2, nrow(test_data), ncol(test_data) - 1)
+
+# Summarize results
+rf_summary <- list(R_squared = rf_r2, Adjusted_R_squared = rf_adjusted_r2)
+lm_summary <- summary(lm_model)
+```
+
+<br>
+
+-   Calculated R² and Adjusted R² for both models using the test set
+
+-   Adjusted R² accounts for model complexity and confirms the performance difference
+
+-   Random Forest slightly outperforms Linear Regression in explained variance
+:::
+
+## Output model results
+
+<br>
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 70%;"}
+```{r}
+brain_tumor_data <- read_csv("brain_tumor_dataset.csv")
+brain_tumor_data <- brain_tumor_data %>%
+  mutate(across(where(is.character), as.factor))
+
+# Define list of common symptoms we're tracking
+symptoms_list <- c("Headache", "Nausea", "Seizures", "Vision Issues")
+
+# turns to 1 and 0s 
+for (symptom in symptoms_list) {
+  brain_tumor_data[[symptom]] <- 0
+}
+
+# Mark 1 if the symptom appears in any of Symptom_1 to Symptom_3
+for (i in 1:3) {
+  col_name <- paste0("Symptom_", i)
+  for (symptom in symptoms_list) {
+    brain_tumor_data[[symptom]] <- brain_tumor_data[[symptom]] | (brain_tumor_data[[col_name]] == symptom)
+  }
+}
+
+# Convert 
+brain_tumor_data[symptoms_list] <- lapply(brain_tumor_data[symptoms_list], as.integer)
+
+# Drop original symptom columns
+brain_tumor_data <- brain_tumor_data[ , !(names(brain_tumor_data) %in% c("Symptom_1", "Symptom_2", "Symptom_3"))]
+
+# Clean column names
+colnames(brain_tumor_data) <- make.names(colnames(brain_tumor_data))
+
+# Drop ID column (not useful for prediction)
+brain_tumor_data <- subset(brain_tumor_data, select = -Patient_ID)
+
+set.seed(42)  
+trainIndex <- createDataPartition(brain_tumor_data$Survival_Rate, p = 0.8, list = FALSE)
+
+train_data <- brain_tumor_data[trainIndex, ]
+test_data <- brain_tumor_data[-trainIndex, ]
+
+# Train the model
+rf_model <- randomForest(Survival_Rate ~ ., data = train_data, importance = TRUE, ntree = 100)
+
+# View feature importance
+importance_scores <- importance(rf_model)
+ranked_features <- importance_scores[order(importance_scores[,1], decreasing = TRUE), ]
+
+# Predict using Random Forest
+rf_predictions <- predict(rf_model, newdata = test_data)
+
+# Train the model
+lm_model <- lm(Survival_Rate ~ ., data = train_data)
+
+# Predict using Linear Regression
+lm_predictions <- predict(lm_model, newdata = test_data)
+
+# Random Forest R^2
+rf_r2 <- cor(test_data$Survival_Rate, rf_predictions)^2
+
+# Linear Model R^2 and Adjusted R^2
+lm_r2 <- summary(lm_model)$r.squared
+
+# Function to compute Adjusted R^2
+adjusted_r2 <- function(r2, n, p) {
+  return (1 - ((1 - r2) * (n - 1) / (n - p - 1)))
+}
+
+# Adjusted R^2 values
+rf_adjusted_r2 <- adjusted_r2(rf_r2, nrow(test_data), ncol(test_data) - 1)
+lm_adjusted_r2 <- adjusted_r2(lm_r2, nrow(test_data), ncol(test_data) - 1)
+
+# Summarize results
+rf_summary <- list(R_squared = rf_r2, Adjusted_R_squared = rf_adjusted_r2)
+lm_summary <- summary(lm_model)
+
+print("Random Forest Summary:")
+print(rf_summary)
+
+print("Linear Regression Summary:")
+print(lm_summary)
+```
+:::
+
+## Residual analysis
+
+<br>
+
+```{r}
+# Diagnostics for Linear Regression
+par(mfrow = c(2, 2))  # Arrange 4 plots
+plot(lm_model)        # Diagnostic plots: residuals, leverage, etc.
+```
+
+## Residual analysis
+
+<br>
+
+```{r}
+# Random Forest Residuals
+rf_residuals <- test_data$Survival_Rate - rf_predictions
+# Plot RF residuals vs predicted values
+plot(rf_predictions, rf_residuals,
+     xlab = "Predicted Values (RF)", ylab = "Residuals",
+     main = "Residuals vs Predicted (Random Forest)")
+abline(h = 0, col = "red")
+```
+
+## Residual analysis
+
+<br>
+
+```{r}
+# Histogram of RF residuals
+hist(rf_residuals, breaks = 30, 
+     main = "Histogram of Residuals (Random Forest)",
+     xlab = "Residuals", col = "lightblue", border = "white")
+```
+
+## Causal method, machine learning
+
+<br>
+
+::: {style="max-height: 500px; font-size: 70%;"}
+```{r}
+df <- read_csv("brain_tumor_dataset.csv")
+summary(df)
+```
+:::
+
+## Causal method, machine learning
+
+<br>
+
+::: {style="max-height: 500px; font-size: 70%;"}
+```{r}
+str(df)
+```
+:::
+
+## Causal method, machine learning
+
+<br>
+
+::: {style="max-height: 500px; font-size: 70%;"}
+```{r}
+df <- df %>%
+  mutate(across(where(is.character), as.factor))
+
+# Create list of unique symptoms
+symptoms_list <- c("Headache", "Nausea", "Seizures", "Vision Issues")
+
+# Initialize new binary columns with 0
+for (symptom in symptoms_list) {
+  df[[symptom]] <- 0
+}
+
+# Loop through Symptom_1 to Symptom_3 and update binary indicators
+for (i in 1:3) {
+  col_name <- paste0("Symptom_", i)
+  for (symptom in symptoms_list) {
+    df[[symptom]] <- df[[symptom]] | (df[[col_name]] == symptom)
+  }
+}
+
+# Convert logicals to numeric (0/1)
+df[symptoms_list] <- lapply(df[symptoms_list], as.integer)
+
+# Drop the original Symptom_1 to Symptom_3 columns
+df <- df[ , !(names(df) %in% c("Symptom_1", "Symptom_2", "Symptom_3"))]
+
+
+str(df)
+```
+:::
+
+## Direct acyclical analysis (DAG)
+
+<br>
+
+::: {style="max-height: 460px; overflow-y: auto; font-size: 55%;"}
+| Variable | Role | Explanation |
+|------------------|------------------|------------------------------------|
+| Patient_ID | Irrelevant | Unique identifier; no causal meaning. |
+| Age | Confounder | Affects both tumor development and survival independently. |
+| Gender | Confounder | Influences tumor biology and survival differences. |
+| Tumor_Type | Mediator / Modifier | Affects tumor size and survival; downstream of genetic/biological causes. |
+| Tumor_Size | Treatment | Exposure variable of interest. |
+| Location | Confounder | Tumor location can affect growth and survival likelihood. |
+| Histology | Confounder | Tumor cell type influences growth and prognosis. |
+| Stage | Collider / Mediator | Influenced by size/symptoms; affects survival. |
+| Symptom_1 / 2 / 3 | Collider / Proxy | Caused by tumor size; influences detection/treatment. |
+| Radiation_Treatment | Mediator / Collider | Determined by size/stage; affects survival. |
+| Surgery_Performed | Mediator / Collider | On the causal path; may also be affected by other factors. |
+| Chemotherapy | Mediator / Collider | Same as above. |
+| Survival_Rate | Outcome | Target variable. |
+| Tumor_Growth_Rate | Mediator | Upstream of size; more aggressive tumors grow faster and affect survival. |
+| Family_History | Confounder | Genetic risk; influences tumor characteristics and survival risk. |
+| MRI_Result | Collider | Influenced by tumor/symptoms; affects treatment; don't adjust. |
+| Follow_Up_Required | Collider | Based on tumor/treatment; conditioning may introduce bias. |
+:::
+
+## Direct acyclical analysis (DAG)
+
+<br>
+
+::: {style="text-align: center;"}
+![](DAG1.png){width="504"}
+:::
+
+::: {style="max-height: 500px; font-size: 60%;"}
+-   Tumor size is the key mediator between factors like age, family history, and histology
+
+-   Tumor size and tumor type directly affect survival rate, along with gender and location as additional direct influences
+:::
+
+## Direct acyclical analysis (DAG)
+
+<br>
+
+::: {style="text-align: center;"}
+![](DAG2.png)
+:::
+
+<br>
+
+::: {style="max-height: 500px; font-size: 60%;"}
+-   Tumor growth influences tumor size, which in turn affects the survival rate
+
+-   The effect of tumor growth on survival is therefore indirect and mediated through tumor size
+:::
+
+## Conclusion
+
+<br>
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 70%;"}
+-   The average survival rate in our dataset was 70.1%, despite an even distribution of tumor types and treatments
+
+-   Random Forest achieved higher predictive performance (R² ≈ X) than Linear Regression (R² ≈ Y), confirming its strength on complex medical data
+
+-   The most important features influencing survival were tumor stage, treatment types (radiation, surgery, chemotherapy), and age
+
+-   Patients with malignant tumors and advanced stages showed significantly lower survival rates
+
+-   Our analysis highlights how data-driven models can support clinical decision-making by identifying key survival factors
+:::

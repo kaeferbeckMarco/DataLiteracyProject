@@ -81,6 +81,10 @@ How does the most influential factor (e.g. tumor stage or treatment response) ca
 ## Exploratory data analysis
 
 ```{r}
+# Datentypen vorbereiten
+data <- data %>%
+  mutate(across(where(is.character), as.factor))
+
 data$Age <- as.numeric(data$Age)
 hist(data$Age, main = "Age distribution", xlab = "Alter", col = "skyblue", breaks = 10)
 ```
