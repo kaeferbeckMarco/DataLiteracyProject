@@ -35,9 +35,9 @@ editor: visual
 
 -   Exploratory data analysis
 
--   Random forest, feature of importance
+-   Random forest, feature importance
 
--   Causal method, machine learning, direct acyclical analysis
+-   Causal method, double machine learning, direct acyclical analysis
 
 -   Conclusion
 
@@ -103,7 +103,7 @@ What are the most significant clinical and demographic **factors influencing** *
 
 <br>
 
-**How** does the most influential factor (e.g. tumor stage, treatment response) **causally effect** the **survival rate** of brain tumor patients?
+**How** does tumor size **causally effect** the **survival rate** of brain tumor patients?
 
 ## Exploratory data analysis
 
@@ -182,7 +182,7 @@ brain_tumor_data <- brain_tumor_data[ , !(names(brain_tumor_data) %in% c("Sympto
 
 # Clean column names
 colnames(brain_tumor_data) <- make.names(colnames(brain_tumor_data))
-
+brain_tumor_data <- brain_tumor_data %>% select(-Patient_ID)
 
 ```
 :::
@@ -277,13 +277,9 @@ print(sorted_importance)
 
 <br>
 
--   Top features influencing survival rate are Stage, Symptom_1, and Histology
+-   Top features influencing survival rate are surgery performed, the Symptoms, and the tumor size
 
--   Age and Gender also show moderate importance
-
--   Several features like Tumor_Growth_Rate, Tumor_Type, and Location show negative importance, possibly reducing model performance
-
--   Features such as Chemotherapy and Radiation_Treatment had little to no predictive value
+-   Several features like Tumor_Growth_Rate, Tumor_Type, and Location show negative importance
 :::
 
 ## Random Forest model
