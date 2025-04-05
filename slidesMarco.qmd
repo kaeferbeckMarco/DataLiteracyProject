@@ -5,16 +5,64 @@ format: revealjs
 editor: visual
 ---
 
-## Quarto
+## Causal Inference Using Double Machine Learning
 
-Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.
+Objective: Estimate the causal effect of Tumor_Size on Survival_Rate.
+
+Challenge: Many variables (e.g., Age, Gender, Histology) influence both Tumor_Size and Survival_Rate.
+
+### Why Traditional Regression Falls Short
+
+Assumes linear, additive effects
+
+Struggles with nonlinear interactions and high-dimensional data
+
+Risk of:
+
+Omitted variable bias
+
+Overfitting
+
+Misleading effect sizes
+
+We need a flexible, robust method to isolate the causal effect.
+
+## What is Double Machine Learning?
+
+DML is a modern causal inference approach that:
+
+- Uses machine learning to model confounding factors
+
+- Removes predictive parts of Treatment and Outcome
+
+- Estimates causal effects on the orthogonalized residuals
+
+DML = Flexibility of ML + Rigor of causal inference
+
+## DML in Three Steps
+
+1. Model treatment (`Tumor_Size`) using confounders (e.g., Age, Gender)  
+2. Model outcome (`Survival_Rate`) using same confounders  
+3. Estimate causal effect using residuals from Step 1 & 2  
+
+This "double residualization" removes biases from ML overfitting by orthogonalizing the treatment and outcome residuals.
+
+The model assumes the following structure:
+
+\[
+Y \coloneqq X\theta + g(Z) + \epsilon, \quad \mathbb{E}[\epsilon \mid X, Z] = 0 \\
+X \coloneqq m(Z) + \nu, \quad \mathbb{E}[\nu \mid Z] = 0
+\]
+
+Where:
+- \( Y \): Outcome (`Survival_Rate`)
+- \( X \): Treatment (`Tumor_Size`)
+- \( Z \): Confounders (e.g., Age, Gender)
+- \( g(Z), m(Z) \): Nuisance functions learned with machine learning
+- \( \theta \): Causal effect of interest
 
 ## Bullets
 
-When you click the **Render** button a document will be generated that includes:
-
--   Content authored with markdown
--   Output from executable code
 
 ## DAG explanation
 
@@ -37,6 +85,7 @@ When you click the **Render** button a document will be generated that includes:
 | Family_History | Confounder | Genetic risk; influences tumor characteristics and survival risk. |
 | MRI_Result | Collider | Influenced by tumor/symptoms; affects treatment; don't adjust. |
 | Follow_Up_Required | Collider | Based on tumor/treatment; conditioning may introduce bias. |
+
 
 ## Code
 
