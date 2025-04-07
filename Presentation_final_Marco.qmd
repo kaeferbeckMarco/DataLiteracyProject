@@ -286,13 +286,25 @@ print(sorted_importance)
 
 <br>
 
-::: {style="max-height: 500px; overflow-y: auto; font-size: 100%;"}
+::: {style="max-height: 500px; overflow-y: auto; font-size: 80%;"}
 ```{r, eval=TRUE, echo=TRUE}
 
 # Predict using Random Forest
 rf_predictions <- predict(rf_model, data = test_data)$predictions
 ```
 :::
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 80%;"}
+- Random Forest = Bagging + Random Feature Selection: It’s an ensemble method that combines multiple decision trees using bagging (bootstrap aggregating).
+-	Bagging: Each tree is trained on a random sample of the data (with replacement), reducing variance and overfitting.
+-	Random Feature Splits: At each split in a tree, only a random subset of features is considered, adding diversity between trees.
+- Independent Trees: Trees are grown independently and fully (often without pruning).
+- Prediction:
+- Classification: Final class = majority vote.
+- Regression: Final output = average of predictions.
+- Strengths: Robust, handles noise well, reduces overfitting compared to single decision trees.
+
+::: {style="max-height: 500px; overflow-y: auto; font-size: 100%;"}
 
 ## Linear regression model
 
