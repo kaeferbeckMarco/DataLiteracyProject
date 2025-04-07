@@ -238,6 +238,46 @@ age_survival <- data %>%
 ggplot(age_survival, aes(x = Age, y = Mean_Survival)) + geom_line(color = "darkgreen", linewidth = 1) + labs(title = "Average survival rate by age", x = "Age", y = "Mean survival rate (%)") + theme_minimal()
 ```
 
+## Exploratory data analysis
+
+<br>
+
+::: {style="max-height: 550px; font-size: 70%;"}
+```{r}
+# Select relevant variables for the regression
+model_data <- data %>%
+  select(Survival_Rate, Age, Gender, Stage, Tumor_Type, Radiation_Treatment, 
+         Surgery_Performed, Chemotherapy, Family_History)
+
+# Convert logicals to factors
+model_data <- model_data %>%
+  mutate(across(where(is.logical), as.factor))
+
+# Linear regression model
+model <- lm(Survival_Rate ~ ., data = model_data)
+
+# Extract summary with p-values
+model_summary <- summary(model)
+coeffs <- as.data.frame(coef(model_summary))
+coeffs$Variable <- rownames(coeffs)
+rownames(coeffs) <- NULL
+
+# Filter out the intercept
+coeffs_filtered <- coeffs %>%
+  filter(Variable != "(Intercept)") %>%
+  mutate(Significant = ifelse(`Pr(>|t|)` < 0.05, "Yes", "No"))
+
+# Plot: p-values of predictors
+ggplot(coeffs_filtered, aes(x = reorder(Variable, `Pr(>|t|)`), y = `Pr(>|t|)`, fill = Significant)) + geom_col() + geom_hline(yintercept = 0.05, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(title = "P-values of Factors Influencing Survival Rate",
+       x = "Variable",
+       y = "p-value") +
+  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "grey")) +
+  theme_minimal()
+```
+:::
+
 ## Feature importance
 
 ::: {style="max-height: 550px; font-size: 70%;"}
@@ -295,15 +335,14 @@ rf_predictions <- predict(rf_model, data = test_data)$predictions
 :::
 
 ::: {style="max-height: 500px; overflow-y: auto; font-size: 60%;"}
-- Random Forest = Bagging + Random Feature Selection: It’s an ensemble method that combines multiple decision trees using bagging (bootstrap aggregating).
--	Bagging: Each tree is trained on a random sample of the data (with replacement), reducing variance and overfitting.
--	Random Feature Splits: At each split in a tree, only a random subset of features is considered, adding diversity between trees.
-- Independent Trees: Trees are grown independently and fully (often without pruning).
-- Prediction:
-- Classification: Final class = majority vote.
-- Regression: Final output = average of predictions.
-- Strengths: Robust, handles noise well, reduces overfitting compared to single decision trees.
-
+-   Random Forest = Bagging + Random Feature Selection: It's an ensemble method that combines multiple decision trees using bagging (bootstrap aggregating).
+-   Bagging: Each tree is trained on a random sample of the data (with replacement), reducing variance and overfitting.
+-   Random Feature Splits: At each split in a tree, only a random subset of features is considered, adding diversity between trees.
+-   Independent Trees: Trees are grown independently and fully (often without pruning).
+-   Prediction:
+-   Classification: Final class = majority vote.
+-   Regression: Final output = average of predictions.
+-   Strengths: Robust, handles noise well, reduces overfitting compared to single decision trees.
 :::
 
 ## Linear regression model
@@ -382,29 +421,25 @@ lm_summary <- capture.output(summary(lm_model))
 ```
 
 ::: columns
-
 ::: column
 **Random Forest Summary**
-<div style="max-height: 500px; overflow-y: auto; font-size: 80%;">
 
+::: {style="max-height: 500px; overflow-y: auto; font-size: 80%;"}
 ```{r}
 cat(paste(rf_summary, collapse = "\n"))
 ```
-
-</div>
+:::
 :::
 
 ::: column
 **Linear Regression Summary**
-<div style="max-height: 500px; overflow-y: auto; font-size: 35%;">
 
+::: {style="max-height: 500px; overflow-y: auto; font-size: 35%;"}
 ```{r}
 cat(paste(lm_summary, collapse = "\n"))
 ```
-
-</div>
 :::
-
+:::
 :::
 
 ## Residual analysis
@@ -443,25 +478,25 @@ hist(rf_residuals, breaks = 30,
 ```
 
 ## Causal Inference Using Double Machine Learning
-::: { style="font-size: 55%;"}
 
+::: {style="font-size: 55%;"}
 Objective: Estimate the causal effect of Tumor_Size on Survival_Rate.
 
 Challenge: Many variables (e.g., Age, Gender, Histology) influence both Tumor_Size and Survival_Rate.
 
 ### Why Traditional Regression Falls Short
 
-- Assumes linear, additive effects
+-   Assumes linear, additive effects
 
-- Struggles with high-dimensional data
+-   Struggles with high-dimensional data
 
 Risk of:
 
-- Omitted variable bias
+-   Omitted variable bias
 
-- Overfitting
+-   Overfitting
 
-- Misleading effect sizes
+-   Misleading effect sizes
 
 We need a flexible, robust method to isolate the causal effect.
 :::
@@ -470,20 +505,20 @@ We need a flexible, robust method to isolate the causal effect.
 
 DML is a modern causal inference approach that:
 
-- Uses machine learning to model confounding factors
+-   Uses machine learning to model confounding factors
 
-- Removes predictive parts of Treatment and Outcome
+-   Removes predictive parts of Treatment and Outcome
 
-- Estimates causal effects on the orthogonalized residuals
+-   Estimates causal effects on the orthogonalized residuals
 
 DML = Flexibility of ML + Rigor of causal inference
 
-::: { style="font-size: 55%;"}
+::: {style="font-size: 55%;"}
 ## DML in Three Steps
 
-1. Model treatment (`Tumor_Size`) using confounders (e.g., Age, Gender)  
-2. Model outcome (`Survival_Rate`) using same confounders  
-3. Estimate causal effect ($\theta$) using residuals from Step 1 & 2  
+1.  Model treatment (`Tumor_Size`) using confounders (e.g., Age, Gender)\
+2.  Model outcome (`Survival_Rate`) using same confounders\
+3.  Estimate causal effect ($\theta$) using residuals from Step 1 & 2
 
 This "double residualization" removes biases from ML overfitting by orthogonalizing the treatment and outcome residuals.
 
@@ -496,15 +531,13 @@ X &:= m(Z) + \nu, \quad \mathbb{E}[\nu \mid Z] = 0
 \end{aligned}
 $$
 
-Where:
-- \( Y \): Outcome (`Survival_Rate`)  
-- \( X \): Treatment (`Tumor_Size`)  
-- \( Z \): Confounders (e.g., Age, Gender)  
-- \( g(Z), m(Z) \): Nuisance functions learned with machine learning  
-- \( $\theta$\): Causal effect of interest
+Where: - ( Y ): Outcome (`Survival_Rate`)\
+- ( X ): Treatment (`Tumor_Size`)\
+- ( Z ): Confounders (e.g., Age, Gender)\
+- ( g(Z), m(Z) ): Nuisance functions learned with machine learning\
+- ( $\theta$): Causal effect of interest
 
 $$\widehat\theta = \frac{\sum_{i=1}^n (\tilde{Y}_i \cdot \tilde{X}_i)}{\sum_{i=1}^n \tilde{X}_i^2} $$
-
 :::
 
 ## Direct acyclical analysis (DAG)
@@ -512,25 +545,25 @@ $$\widehat\theta = \frac{\sum_{i=1}^n (\tilde{Y}_i \cdot \tilde{X}_i)}{\sum_{i=1
 <br>
 
 ::: {style="max-height: 460px; overflow-y: auto; font-size: 30%;"}
-| Variable | Role | Explanation |
+| Variable            | Role                | Explanation                                                               |
 |------------------------|------------------------|------------------------|
-| Patient_ID | Irrelevant | Unique identifier; no causal meaning. |
-| Age | Confounder | Affects both tumor development and survival independently. |
-| Gender | Confounder | Influences tumor biology and survival differences. |
-| Tumor_Type | Mediator / Modifier | Affects tumor size and survival; downstream of genetic/biological causes. |
-| Tumor_Size | Treatment | Exposure variable of interest. |
-| Location | Confounder | Tumor location can affect growth and survival likelihood. |
-| Histology | Confounder | Tumor cell type influences growth and prognosis. |
-| Stage | Collider / Mediator | Influenced by size/symptoms; affects survival. |
-| Symptom_1 / 2 / 3 | Collider / Proxy | Caused by tumor size; influences detection/treatment. |
-| Radiation_Treatment | Mediator / Collider | Determined by size/stage; affects survival. |
-| Surgery_Performed | Mediator / Collider | On the causal path; may also be affected by other factors. |
-| Chemotherapy | Mediator / Collider | Same as above. |
-| Survival_Rate | Outcome | Target variable. |
-| Tumor_Growth_Rate | Mediator | Upstream of size; more aggressive tumors grow faster and affect survival. |
-| Family_History | Confounder | Genetic risk; influences tumor characteristics and survival risk. |
-| MRI_Result | Collider | Influenced by tumor/symptoms; affects treatment; don't adjust. |
-| Follow_Up_Required | Collider | Based on tumor/treatment; conditioning may introduce bias. |
+| Patient_ID          | Irrelevant          | Unique identifier; no causal meaning.                                     |
+| Age                 | Confounder          | Affects both tumor development and survival independently.                |
+| Gender              | Confounder          | Influences tumor biology and survival differences.                        |
+| Tumor_Type          | Mediator / Modifier | Affects tumor size and survival; downstream of genetic/biological causes. |
+| Tumor_Size          | Treatment           | Exposure variable of interest.                                            |
+| Location            | Confounder          | Tumor location can affect growth and survival likelihood.                 |
+| Histology           | Confounder          | Tumor cell type influences growth and prognosis.                          |
+| Stage               | Collider / Mediator | Influenced by size/symptoms; affects survival.                            |
+| Symptom_1 / 2 / 3   | Collider / Proxy    | Caused by tumor size; influences detection/treatment.                     |
+| Radiation_Treatment | Mediator / Collider | Determined by size/stage; affects survival.                               |
+| Surgery_Performed   | Mediator / Collider | On the causal path; may also be affected by other factors.                |
+| Chemotherapy        | Mediator / Collider | Same as above.                                                            |
+| Survival_Rate       | Outcome             | Target variable.                                                          |
+| Tumor_Growth_Rate   | Mediator            | Upstream of size; more aggressive tumors grow faster and affect survival. |
+| Family_History      | Confounder          | Genetic risk; influences tumor characteristics and survival risk.         |
+| MRI_Result          | Collider            | Influenced by tumor/symptoms; affects treatment; don't adjust.            |
+| Follow_Up_Required  | Collider            | Based on tumor/treatment; conditioning may introduce bias.                |
 :::
 
 ## Direct acyclical analysis (DAG)
@@ -542,8 +575,8 @@ $$\widehat\theta = \frac{\sum_{i=1}^n (\tilde{Y}_i \cdot \tilde{X}_i)}{\sum_{i=1
 :::
 
 ::: {style="max-height: 500px; font-size: 60%;"}
--  Age, Family_History, Histology, Location and Gender are Confounders between Tumor_Size and Survival_Rate
-- Tumor_Type would be a direct predictor for Survival_Rate
+-   Age, Family_History, Histology, Location and Gender are Confounders between Tumor_Size and Survival_Rate
+-   Tumor_Type would be a direct predictor for Survival_Rate
 :::
 
 ## Direct acyclical analysis (DAG)
@@ -565,7 +598,7 @@ $$\widehat\theta = \frac{\sum_{i=1}^n (\tilde{Y}_i \cdot \tilde{X}_i)}{\sum_{i=1
 <br>
 
 ::: {style="text-align: center; font-size: 60%; max-height: 500px;"}
-![](DAG3.png){width=50%}
+![](DAG3.png){width="50%"}
 :::
 
 <br>
@@ -613,11 +646,11 @@ dml_plr$fit()
 :::
 
 ## Double machine learning
+
 ```{r echo=TRUE}
 # Print summary
 print(dml_plr$summary())
 ```
-
 
 ## Conclusion
 
